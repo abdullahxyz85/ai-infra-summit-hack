@@ -16,6 +16,7 @@ from stage4_bimanual.constants import (
 )
 from stage4_bimanual.primitives import (
     OpenDrawerPrimitive,
+    PickBottlePrimitive,
     PickMugPrimitive,
     PickPlatePrimitive,
     PlacePlatePrimitive,
@@ -39,17 +40,23 @@ _SCENE_XML = _ROOT / "assets" / "bimanual_scene.xml"
 _CONFIG_PATH = _ROOT / "configs" / "default.yaml"
 
 
-def reset_scene(seed: int = 0) -> Any:
+def reset_scene(seed: int = 0, *, trajectory_jitter: float | None = None) -> Any:
     """Initialize and randomize the dual SO-101 MuJoCo scene for a given seed.
 
     Args:
-        seed: Random seed for domain randomization (lighting, friction, jitter).
+        seed: Random seed for domain randomization (placement, yaw, lighting,
+            friction, mass) read from configs/default.yaml -> randomization.
+        trajectory_jitter: scale of the scripted expert's seed-deterministic
+            waypoint/timing variation; None reads randomization.trajectory_jitter
+            from the config (0 by default = nominal script).
 
     Returns:
         MuJoCoSim handle if MuJoCo is available, else FakeSim fallback.
     """
+    if trajectory_jitter is None:
+        trajectory_jitter = float(DomainRandomizer.load_config(_CONFIG_PATH).get("trajectory_jitter", 0.0) or 0.0)
     if not HAS_MUJOCO or not _SCENE_XML.exists():
-        return FakeSim(seed=seed)
+        return FakeSim(seed=seed, trajectory_jitter=trajectory_jitter)
 
     model = mujoco.MjModel.from_xml_path(str(_SCENE_XML))
     data = mujoco.MjData(model)
@@ -75,7 +82,7 @@ def reset_scene(seed: int = 0) -> Any:
     data.ctrl[11] = GRIPPER_OPEN
     mujoco.mj_forward(model, data)
 
-    return MuJoCoSim(model=model, data=data, seed=seed)
+    return MuJoCoSim(model=model, data=data, seed=seed, trajectory_jitter=trajectory_jitter)
 
 
 def get_camera_frame(sim: Any) -> Any | None:
@@ -149,15 +156,23 @@ def execute(actions: list[Action], sim: Any | None = None) -> ExecutionResult:
                 primitive = PickMugPrimitive(executor, sim)
                 success = primitive.execute()
 
+            elif act_name in ("pick", "ActionType.PICK") and obj == "water_bottle":
+                primitive = PickBottlePrimitive(executor, sim)
+                success = primitive.execute()
+
             elif act_name in ("pour", "ActionType.POUR"):
                 primitive = PourWaterPrimitive(executor, sim)
                 success = primitive.execute()
 
             else:
-                sim.step(50)
-                success = True
+                # An action this executor cannot perform is a failure, never a
+                # silent success (CONTRACT_PROPOSAL.md P2).
+                print(f"[stage4_bimanual] Action {action.step_id}: no primitive for {act_name} {obj!r}")
+                success = False
 
             action_results[action.step_id] = success
+            if not success:
+                break  # later actions depend on this one; do not pretend to run them
 
         except Exception as err:
             print(f"[stage4_bimanual] Action {action.step_id} execution error: {err}")
@@ -178,10 +193,18 @@ def execute(actions: list[Action], sim: Any | None = None) -> ExecutionResult:
         drawers={"top_drawer": drawer_state},
     )
 
-    collision_error = None if sim.contact_audit.ok else f"collision audit failed: {sim.contact_audit.summary()}"
+    failed = [step for step, ok in action_results.items() if not ok]
+    skipped = [a.step_id for a in actions if a.step_id not in action_results]
+    for step in skipped:
+        action_results[step] = False
+    errors = []
+    if failed:
+        errors.append(f"action(s) {failed} failed" + (f"; {skipped} not attempted" if skipped else ""))
+    if not sim.contact_audit.ok:
+        errors.append(f"collision audit failed: {sim.contact_audit.summary()}")
     return ExecutionResult(
         action_results=action_results,
         success=all(action_results.values()) and sim.contact_audit.ok,
         final_scene=final_scene,
-        error=collision_error,
+        error="; ".join(errors) or None,
     )

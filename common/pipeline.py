@@ -52,7 +52,7 @@ def run_once(command: str, seed: int = 0, max_retries: int | None = None) -> Run
         deps = f" (after {step.depends_on})" if step.depends_on else ""
         log.append(f"              {step.id}. {step.action.value:<12} arm {step.arm}{deps}")
 
-    log.append("[perceive] stage2_perception.perceive(get_camera_frame(sim))")
+    log.append("[perceive] stage2_perception.perceive(get_camera_frame(sim), sim=sim)")
     scene = perceive(get_camera_frame(sim), sim=sim)
     log.append(f"           -> {len(scene.objects)} objects: {', '.join(scene.objects)}")
     log.append(f"           -> drawers: {dict(scene.drawers)}")
@@ -86,18 +86,6 @@ def run_once(command: str, seed: int = 0, max_retries: int | None = None) -> Run
                     f"pending steps {list(result.pending_step_ids)}: {result.blocked_reason}"
                 )
 
-<<<<<<< HEAD
-        log.append("[verify]   stage6_verify.verify(perceive(get_camera_frame(sim)), task)")
-        scene_after = perceive(get_camera_frame(sim), sim=sim)
-        verdict = verify(scene_after, task)
-        log.append(f"           -> ok={verdict.ok} replan={verdict.replan} ({verdict.details})")
-
-        if result.success and verdict.ok:
-            success = True
-            break
-        if not result.success:
-            log.append("           -> execution did not satisfy physics/contact checks")
-=======
             log.append("[execute]  stage4_bimanual.execute(actions, sim)")
             execution = execute(list(result.actions), sim)
             ok = sum(execution.action_results.values())
@@ -113,8 +101,8 @@ def run_once(command: str, seed: int = 0, max_retries: int | None = None) -> Run
                     newly_completed += 1
                 completed.add(action.step_id)
 
-            log.append("[perceive] stage2_perception.perceive(get_camera_frame(sim))  (fresh observation)")
-            scene = perceive(get_camera_frame(sim))
+            log.append("[perceive] stage2_perception.perceive(get_camera_frame(sim), sim=sim)  (fresh observation)")
+            scene = perceive(get_camera_frame(sim), sim=sim)
 
             if not execution.success or result.complete:
                 break
@@ -141,7 +129,6 @@ def run_once(command: str, seed: int = 0, max_retries: int | None = None) -> Run
             log.append("           -> execution reported failure, so verify ok is not counted as success")
         elif verdict.ok:
             log.append("           -> the plan never completed, so verify ok is not counted as success")
->>>>>>> 6b76c5f9c32805e4bdfa4410f16fded3d017ff50
         if verdict.replan and attempts < max_retries:
             log.append(
                 "           -> replan requested: retrying from the new observation, "

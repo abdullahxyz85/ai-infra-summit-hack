@@ -18,7 +18,7 @@ language-conditioned learned policy.
 
 Every accepted episode must contain:
 
-- `overhead` and `front` RGB images at 20 FPS;
+- `overhead` and `front` RGB images at 25 FPS (one frame every 20 physics steps, as in `stage3_policy/learned/schema.py`);
 - 12 joint positions: 6 for Arm A then 6 for Arm B, including each gripper;
 - 12 matching position-target actions;
 - task string, skill name, random seed, timestamps, contact-audit result;
@@ -48,15 +48,42 @@ the source of truth for whether that visible motion is physically acceptable.
 
 ## Record one task at a time
 
-After the physics checks pass, run 50 initial examples per atomic skill:
+After the physics checks pass, run 50 initial examples per atomic skill. Seeds
+0–9 are the evaluation seeds and the recorder refuses them; every skill gets its
+own seed block so no two skills share a layout:
 
 ```powershell
-python scripts/record_skill_demos.py --task open_drawer --episodes 50 --seed 0
-python scripts/record_skill_demos.py --task pick_plate  --episodes 50 --seed 100
-python scripts/record_skill_demos.py --task place_plate --episodes 50 --seed 200
-python scripts/record_skill_demos.py --task pick_mug    --episodes 50 --seed 300
-python scripts/record_skill_demos.py --task pour_water  --episodes 50 --seed 400
+python scripts/record_skill_demos.py --task open_drawer --episodes 50 --seed 100
+python scripts/record_skill_demos.py --task pick_plate  --episodes 50 --seed 200
+python scripts/record_skill_demos.py --task place_plate --episodes 50 --seed 300
+python scripts/record_skill_demos.py --task pick_mug    --episodes 50 --seed 400
+python scripts/record_skill_demos.py --task pick_bottle --episodes 50 --seed 500
+python scripts/record_skill_demos.py --task pour_water  --episodes 50 --seed 600
 ```
+
+`--jitter 1.0` (the default) adds seed-deterministic variation to the scripted
+expert's standoffs, lift heights, tilt angle, hold time and timing on top of the
+scene randomization in `configs/default.yaml`; `--jitter 0` replays the nominal
+script. Each `manifest.json` carries the primitive's own success metrics
+(e.g. mouth offset from the mug axis, vessel tilts after release).
+
+## Trajectory diversity between episodes
+
+Scripted experts give a learned policy almost no between-episode variation
+unless the scene and the script vary. Measured on seeds 100–109 as the mean
+per-joint standard deviation across time-normalized episodes (rad), against
+the ALOHA scripted transfer-cube dataset that ACT is known to learn from
+(50 episodes, 0.032 rad, 0.037 over its moving arm):
+
+| Setting | pour_water | open_drawer | pick_mug | verdict |
+|---|---|---|---|---|
+| ±2 cm placement, no jitter (before 2026-09-15) | 0.019 (old pour) / 0.012 (new pour) | 0.001 | 0.015 | too narrow: ~1/3 of the ALOHA reference, drawer skill identical every episode |
+| ±2 cm placement + jitter 1.0 | 0.040 | – | – | comparable |
+| shipped ranges (±3/±4 cm, mug yaw ±30°, drawer ±2 cm) + jitter 1.0 | 0.071 | 0.021 | 0.043 | ~1.3–2× the reference, all skills 10/10 |
+| stress (±6 cm, yaw ±45°, jitter 1.5) | 0.102 | – | – | 10/10 for the pour; not validated for the other skills |
+
+Keep the shipped ranges for the first dataset. Widen only after a policy trained
+on it is evaluated on the held-out seeds 0–9.
 
 The recorder renders two camera views and writes, for example,
 `data/raw_skill_demos/pick_mug/episode_00000_seed_0300/`.

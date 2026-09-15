@@ -42,6 +42,7 @@ except ImportError as err:
 from stage4_bimanual.bimanual import reset_scene
 from stage4_bimanual.primitives import (
     OpenDrawerPrimitive,
+    PickBottlePrimitive,
     PickMugPrimitive,
     PickPlatePrimitive,
     PlacePlatePrimitive,
@@ -221,7 +222,8 @@ def collect_dataset(
             ("Step 2: Pick Plate", PickPlatePrimitive),
             ("Step 3: Place Plate", PlacePlatePrimitive),
             ("Step 4: Pick Mug", PickMugPrimitive),
-            ("Step 5: Pour Water", PourWaterPrimitive),
+            ("Step 5: Pick Bottle", PickBottlePrimitive),
+            ("Step 6: Pour Water", PourWaterPrimitive),
         ]
 
         ep_success = True
