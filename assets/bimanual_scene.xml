@@ -107,6 +107,10 @@
       <!-- Visual 3D Mesh -->
       <geom type="mesh" mesh="mug_mesh" material="ceramic_blue_mat" contype="0" conaffinity="0" group="2"/>
       <!-- Physical Collision Cylinder (aligned with visual cylinder) -->
+      <!-- Group 1 only: the mug is pinched by the finger-base pads; the fingertip
+           pads (group 2) would otherwise sweep the mug body during the pitched
+           descent onto a rotated handle. Fingertips have no mug collision, like
+           the original model. -->
       <geom name="mug_geom" type="cylinder" size="0.044 0.048" pos="0 -0.018 0.048" mass="0.12" friction="1.8 0.01 0.001" rgba="0 0 0 0" group="3"/>
       <!-- Physical Collision Handle (capsule spanning vertical handle loop) -->
       <geom name="mug_handle" type="capsule" fromto="0 0.050 0.030 0 0.050 0.075" size="0.010" mass="0.02" friction="2.0 0.01 0.001" rgba="0 0 0 0" group="3"/>
@@ -162,8 +166,9 @@
       <!-- Visual 3D Mesh -->
       <geom type="mesh" mesh="bottle_mesh" material="bottle_blue_mat" contype="0" conaffinity="0" group="2"/>
       <!-- Physical Collision Shapes: Main Body + Graspable Neck/Cap -->
-      <geom name="bottle_body" type="cylinder" size="0.024 0.050" pos="0 0 0.050" mass="0.10" friction="1.8 0.01 0.001" rgba="0 0 0 0" group="3"/>
-      <geom name="bottle_geom" type="cylinder" size="0.016 0.030" pos="0 0 0.130" mass="0.05" friction="1.8 0.01 0.001" rgba="0 0 0 0" group="3"/>
+      <!-- contype/conaffinity 3 = default group 1 plus fingertip-pad group 2 -->
+      <geom name="bottle_body" type="cylinder" size="0.024 0.050" pos="0 0 0.050" mass="0.10" friction="1.8 0.01 0.001" rgba="0 0 0 0" group="3" contype="3" conaffinity="3"/>
+      <geom name="bottle_geom" type="cylinder" size="0.016 0.030" pos="0 0 0.130" mass="0.05" friction="1.8 0.01 0.001" rgba="0 0 0 0" group="3" contype="3" conaffinity="3"/>
       <site name="bottle_site" pos="0 0 0.130" rgba="0 0 0 0" group="3"/>
     </body>
 
@@ -209,7 +214,9 @@
     <weld name="weld_plate_drawer" body1="sliding_tray" body2="plate" active="true"/>
     <weld name="weld_drawer" body1="a_gripper_base" body2="sliding_tray" active="false"/>
     <weld name="weld_plate" body1="a_gripper_base" body2="plate" active="false"/>
-    <weld name="weld_mug" body1="b_gripper_base" body2="mug" active="false"/>
-    <weld name="weld_bottle" body1="a_gripper_base" body2="water_bottle" active="false"/>
+    <!-- Stiffer solref (6 ms vs the 20 ms default): a held vessel must not sag or rotate
+         in the fingers while the arm lifts, transits and rolls it over the mug. -->
+    <weld name="weld_mug" body1="b_gripper_base" body2="mug" active="false" solref="0.006 1"/>
+    <weld name="weld_bottle" body1="a_gripper_base" body2="water_bottle" active="false" solref="0.006 1"/>
   </equality>
 </mujoco>

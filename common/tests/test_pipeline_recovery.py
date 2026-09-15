@@ -79,7 +79,7 @@ def install_stages(monkeypatch):
 
         doubles = {
             "stage1_voice": {"parse_text": lambda text: task},
-            "stage2_perception": {"perceive": lambda image=None: observations.pop(0)},
+            "stage2_perception": {"perceive": lambda image=None, sim=None: observations.pop(0)},
             "stage3_policy": {"plan_detailed": plan_detailed, "PlanningError": DoublePlanningError},
             "stage4_bimanual": {"execute": execute, "get_camera_frame": lambda sim: None, "reset_scene": lambda seed: object()},
             "stage6_verify": {"verify": verify},

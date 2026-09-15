@@ -23,6 +23,7 @@ import numpy as np
 from stage4_bimanual.bimanual import reset_scene
 from stage4_bimanual.primitives import (
     OpenDrawerPrimitive,
+    PickBottlePrimitive,
     PickMugPrimitive,
     PickPlatePrimitive,
     PlacePlatePrimitive,
@@ -115,8 +116,9 @@ def run_interactive(seed: int = 0) -> None:
             ("Step 1/5: Arm A opening drawer...", OpenDrawerPrimitive),
             ("Step 2/5: Arm A picking plate from drawer...", PickPlatePrimitive),
             ("Step 3/5: Arm A placing plate on table...", PlacePlatePrimitive),
-            ("Step 4/5: Arm B picking and holding mug...", PickMugPrimitive),
-            ("Step 5/5: Arm A pouring water into Arm B's mug...", PourWaterPrimitive),
+            ("Step 4/6: Arm B picking and holding mug...", PickMugPrimitive),
+            ("Step 5/6: Arm A grasping the bottle by its body...", PickBottlePrimitive),
+            ("Step 6/6: Arm A pouring water into Arm B's mug...", PourWaterPrimitive),
         ]
 
         for desc, PrimitiveClass in steps:

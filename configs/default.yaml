@@ -6,13 +6,28 @@ seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 # plan -> execute -> verify up to this many times, then reports FAIL.
 max_retries: 2
 
-# Domain-randomization ranges for stage7_eval. TODO(Abdullah): tune once the
-# MuJoCo scene is in assets/.
+# Domain-randomization ranges, applied by stage4_bimanual.reset_scene(seed) for
+# both stage7_eval and demonstration recording (scripts/record_skill_demos.py).
+#
+# Tuned 2026-09-15 against the ALOHA scripted transfer-cube dataset (the
+# reference ACT trains on). With +-2 cm placement only, the scripted expert's
+# between-episode joint-trajectory variation was ~1/3 of that reference; these
+# ranges bring it to ~1.3x while the scripted primitives still pass 10/10 seeds.
 randomization:
-  object_placement_cm: [-2.0, 2.0]   # +/- offset applied to nominal object positions
+  object_placement_cm: [-3.0, 3.0]   # default +/- xy offset for mug, water_bottle, spoon, fork
+  placement_cm_by_object:            # per-object overrides (drawer_unit moves with the plate inside it)
+    mug: [-4.0, 4.0]
+    water_bottle: [-4.0, 4.0]
+    drawer_unit: [-2.0, 2.0]
+  object_yaw_deg:                    # yaw about +z; the mug handle direction matters for the grasp
+    mug: [-30.0, 30.0]
   lighting_intensity: [0.6, 1.4]     # multiplier on scene light
   friction: [0.6, 1.2]               # multiplier on contact friction
-  mass_scale: [0.8, 1.2]             # multiplier on object masses
+  mass_scale: [0.8, 1.2]             # multiplier on tableware masses (robot links stay nominal)
+  # Scale of the scripted expert's seed-deterministic waypoint/timing variation.
+  # 0 keeps evaluation runs on the nominal script; record_skill_demos.py passes
+  # --jitter 1.0 for training data (see stage4_bimanual/primitives.py TrajectoryJitter).
+  trajectory_jitter: 0.0
 
 arms:
   ids: ["A", "B"]
